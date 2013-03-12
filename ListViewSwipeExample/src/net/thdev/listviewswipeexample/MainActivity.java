@@ -11,6 +11,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
 public class MainActivity extends Activity implements SwipeDismissListViewTouchListener.OnDismissCallback {
+	
 	ListView mListView;
 	ArrayAdapter<String> mAdapter;
 
@@ -44,9 +45,10 @@ public class MainActivity extends Activity implements SwipeDismissListViewTouchL
 	@Override
 	public void onDismiss(ListView listView, int[] reverseSortedPositions) {
 		for (int i=0; i<reverseSortedPositions.length; i++) {
-			Log.v("MainActivity", i + " position " + reverseSortedPositions[i]);
+			Log.i("onDismiss", i + " position " + reverseSortedPositions[i]);
 			mAdapter.remove(mAdapter.getItem(reverseSortedPositions[i]));
 		}
+		
 		
 		mAdapter.notifyDataSetChanged();
 		

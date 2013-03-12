@@ -76,7 +76,12 @@ import java.util.List;
  */
 @SuppressLint("NewApi")
 public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
-    // Cached ViewConfiguration and system-wide constant values
+    
+	// Delta Value
+	private static int FLING_DELTA_MIN = 1;
+	private static int FLING_DELTA_MAX = 1;
+	
+	// Cached ViewConfiguration and system-wide constant values
     private int mSlop;
     private int mMinFlingVelocity;
     private int mMaxFlingVelocity;
@@ -123,8 +128,8 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
     public SwipeDismissListViewTouchListener(ListView listView, OnDismissCallback callback) {
         ViewConfiguration vc = ViewConfiguration.get(listView.getContext());
         mSlop = vc.getScaledTouchSlop();
-        mMinFlingVelocity = vc.getScaledMinimumFlingVelocity();
-        mMaxFlingVelocity = vc.getScaledMaximumFlingVelocity();
+        mMinFlingVelocity = vc.getScaledMinimumFlingVelocity()*FLING_DELTA_MIN;
+        mMaxFlingVelocity = vc.getScaledMaximumFlingVelocity()*FLING_DELTA_MAX;
         mAnimationTime = listView.getContext().getResources().getInteger(
                 android.R.integer.config_shortAnimTime);
         mListView = listView;
@@ -166,7 +171,8 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
     @SuppressLint("NewApi")
 	@Override
     public boolean onTouch(View view, MotionEvent motionEvent) {
-        if (mViewWidth < 2) {
+        
+    	if (mViewWidth < 2) {
             mViewWidth = mListView.getWidth();
         }
 
@@ -190,7 +196,7 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
                     child = mListView.getChildAt(i);
                     child.getHitRect(rect);
                     if (rect.contains(x, y)) {
-                        mDownView = child;
+                        mDownView = child; // find the child
                         break;
                     }
                 }
@@ -226,8 +232,9 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
                     dismiss = true;
                     dismissRight = mVelocityTracker.getXVelocity() > 0;
                 }
+
                 if (dismiss) {
-                    // dismiss
+                	// dismiss
                     final View downView = mDownView; // mDownView gets null'd before animation ends
                     final int downPosition = mDownPosition;
                     ++mDismissAnimationRefCount;
@@ -313,16 +320,17 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
         final int originalHeight = dismissView.getHeight();
 
         ValueAnimator animator = ValueAnimator.ofInt(originalHeight, 1).setDuration(mAnimationTime);
-
         animator.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
+            	Log.i("AnimatorListenerAdapter", "onAnimationEnd()");
                 --mDismissAnimationRefCount;
                 if (mDismissAnimationRefCount == 0) {
                     // No active animations, process all pending dismisses.
                     // Sort by descending position
                     Collections.sort(mPendingDismisses);
 
+                    Log.i("performDismiss", "mPendingDismisses.size() : " + mPendingDismisses.size());
                     int[] dismissPositions = new int[mPendingDismisses.size()];
                     for (int i = mPendingDismisses.size() - 1; i >= 0; i--) {
                         dismissPositions[i] = mPendingDismisses.get(i).position;
@@ -347,11 +355,14 @@ public class SwipeDismissListViewTouchListener implements View.OnTouchListener {
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator valueAnimator) {
+            	Log.i("onAnimationUpdate", "onAnimationUpdate() - "+valueAnimator.getAnimatedValue());
                 lp.height = (Integer) valueAnimator.getAnimatedValue();
                 dismissView.setLayoutParams(lp);
             }
         });
 
+        // 없어질 타겟 dismissView 를 mPendingDismisses 에 추가하여 애니메이션을 진행
+        // 애니메이션이 끝난 뒤 콜백 함수를 작동시켜서 리스트뷰에서 제거
         mPendingDismisses.add(new PendingDismissData(dismissPosition, dismissView));
         animator.start();
     }
